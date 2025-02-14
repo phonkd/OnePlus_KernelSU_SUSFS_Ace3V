@@ -182,7 +182,7 @@ jobs:
           #git config --global user.email "bins4us@hotmail.com"
           #git config --global user.name "TheWildJames"
           #git add *
-          #git commit -s -a -m "getting rid of -dirty"
+          git commit -s -a -m "getting rid of -dirty"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Create Bootimgs Folder and Copy Images
