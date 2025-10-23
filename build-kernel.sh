@@ -76,33 +76,36 @@ $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 # Add KernelSU
 log "Adding KernelSU..."
 cd kernel_platform
-curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
-cd KernelSU-Next/kernel
-sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' ./Makefile
-cd ../..
+
+# Download KernelSU without using setup.sh
+git clone https://github.com/tiann/KernelSU -b main --depth=1 KernelSU-Next
+# Remove any existing symlink to avoid infinite loop
+rm -f KernelSU-Next/kernel/kernel
+cd KernelSU-Next
+git checkout v1.1.1
 
 # Apply SUSFS patches
 log "Applying SUSFS patches..."
-cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
-cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
-cp -r ../../susfs4ksu/kernel_patches/fs/* ./common/fs/
-cp -r ../../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
+cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ../common/
+cp -r ../../susfs4ksu/kernel_patches/fs/* ../common/fs/
+cp -r ../../susfs4ksu/kernel_patches/include/linux/* ../common/include/linux/
 
-cd KernelSU-Next
 patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
 cd ../common
 patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
 cd ..
 
-# Apply Next-SUSFS patches from the correct location
+# Apply Next-SUSFS patches
 log "Applying next SUSFS patches..."
 PATCH_DIR="../../kernel_patches/next/susfs_fix_patches/v1.5.12"
-cp "$PATCH_DIR/fix_apk_sign.c.patch" ./KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_core_hook.c.patch" ./KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_sucompat.c.patch" ./KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_kernel_compat.c.patch" ./KernelSU-Next/kernel/
+cd KernelSU-Next
+cp "$PATCH_DIR/fix_apk_sign.c.patch" ./kernel/
+cp "$PATCH_DIR/fix_core_hook.c.patch" ./kernel/
+cp "$PATCH_DIR/fix_sucompat.c.patch" ./kernel/
+cp "$PATCH_DIR/fix_kernel_compat.c.patch" ./kernel/
 
-cd KernelSU-Next/kernel
+cd kernel
 patch -p1 < fix_apk_sign.c.patch || true
 patch -p1 < fix_core_hook.c.patch || true
 patch -p1 < fix_sucompat.c.patch || true
@@ -147,18 +150,23 @@ sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stam
 sed -i 's/-dirty//' ./common/scripts/setlocalversion
 perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
 
-# Build the kernel
-log "Building the kernel..."
+# Prepare the build environment
+log "Setting up build environment..."
 cd ..
 rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 git config --global user.email "local-build@localhost"
 git config --global user.name "Local Build"
-./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+
+# Build the kernel using legacy build system instead of Bazel
+log "Building the kernel..."
+cd kernel_platform/oplus/build
+SKIP_ABI=1 SKIP_MRPROPER=1 ./oplus_build_kernel.sh pineapple gki
 
 # Create final ZIP
 log "Creating final ZIP..."
-cp ./out/dist/Image ../AnyKernel3/Image
-cd ../AnyKernel3
+cd ../../../
+cp ./out/dist/Image ../../AnyKernel3/Image
+cd ../../AnyKernel3
 zip -r9 "../Anykernel3-OPNord4-A15-6.1-KernelSU-SUSFS.zip" ./*
 
 cd ..
