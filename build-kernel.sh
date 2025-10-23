@@ -40,9 +40,11 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # Configuration
-CONFIG="nord4"
+KERNEL_TARGET="sun"
+KERNEL_VARIANT="gki"
+BUILD_TYPE="user"
+WORKING_DIR="$(pwd)/nord4"
 ANYKERNEL_BRANCH="gki-2.0"
-WORKING_DIR="$(pwd)/$CONFIG"
 
 # Check for required tools
 REQUIRED_TOOLS="git curl make gcc bc bison flex perl zip python3"
@@ -74,18 +76,18 @@ if [ -d "$WORKING_DIR" ]; then
     fi
 fi
 
-# Install repo tool if not present
-if [ ! -f "./git-repo/repo" ]; then
-    log "Installing repo tool..."
-    mkdir -p ./git-repo
-    curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
-    chmod a+rx ./git-repo/repo
-fi
-
 # Clone required repositories
 log "Cloning required repositories..."
 if [ ! -d "AnyKernel3" ]; then
     git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
+fi
+
+# Install repo tool if not present
+log "Installing repo tool..."
+if [ ! -f "./git-repo/repo" ]; then
+    mkdir -p ./git-repo
+    curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
+    chmod a+rx ./git-repo/repo
 fi
 
 # Create and enter working directory
@@ -106,32 +108,36 @@ rm -f KernelSU/kernel/kernel
 
 # Configure KernelSU and kernel tree
 log "Configuring KernelSU..."
+mkdir -p common/drivers/kernelsu
 ln -sf $(pwd)/KernelSU/kernel $(pwd)/common/drivers/kernelsu
-echo "obj-y += kernelsu/" >> ./common/drivers/Makefile
-echo "source \"drivers/kernelsu/Kconfig\"" >> ./common/drivers/Kconfig
+echo "obj-y += kernelsu/" >> common/drivers/Makefile
+echo "source \"drivers/kernelsu/Kconfig\"" >> common/drivers/Kconfig
 sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' KernelSU/kernel/Makefile
 
 # Add KernelSU configuration
 log "Adding KernelSU configuration..."
-echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+echo "CONFIG_KSU=y" >> common/arch/arm64/configs/gki_defconfig
 
-# Apply version and build modifications
-log "Applying version and build modifications..."
-cd oplus/build
+# Setup build environment
+log "Setting up build environment..."
+export TARGET_BUILD_VARIANT=$BUILD_TYPE
+export ANDROID_BUILD_TOP="$(pwd)/.."
+export TARGET_BOARD_PLATFORM=$KERNEL_TARGET
 
 # Build the kernel
 log "Building the kernel..."
+cd oplus/build
 if [ $INTERACTIVE -eq 1 ]; then
-    echo "Select pineapple and gki when prompted"
-    ./oplus_build.sh -t user -p pineapple -b kernel
+    ./oplus_build.sh -t $BUILD_TYPE -p $KERNEL_TARGET -b kernel
 else
-    ./oplus_build.sh -t user -p pineapple -b kernel
+    ./oplus_build.sh -t $BUILD_TYPE -p $KERNEL_TARGET -b kernel
 fi
 
 # Create final ZIP
 log "Creating final ZIP..."
-cd ../../../..
-cp kernel_platform/out/msm-kernel-pineapple-gki/dist/Image ../../AnyKernel3/
+cd ../../..
+mkdir -p out/msm-kernel-$KERNEL_TARGET-$KERNEL_VARIANT/dist
+cp kernel_platform/out/msm-kernel-${KERNEL_TARGET}-${KERNEL_VARIANT}/dist/Image ../../AnyKernel3/
 cd ../../AnyKernel3
 zip -r9 "../Anykernel3-OPNord4-KernelSU.zip" ./*
 
