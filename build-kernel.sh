@@ -81,7 +81,6 @@ if [ ! -f "./git-repo/repo" ]; then
     curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
     chmod a+rx ./git-repo/repo
 fi
-REPO="$(pwd)/git-repo/repo"
 
 # Clone required repositories
 log "Cloning required repositories..."
@@ -96,8 +95,8 @@ cd "$WORKING_DIR"
 
 # Initialize and sync kernel source
 log "Initializing and syncing kernel source..."
-$REPO init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm7675 -m oneplus_nord_4_v.xml --repo-rev=v2.16 --depth=1
-$REPO sync -c -j$(nproc --all) --no-tags --fail-fast
+../git-repo/repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm7675 -m oneplus_nord_4_v.xml --repo-rev=v2.16 --depth=1
+../git-repo/repo sync -c -j$(nproc --all) --no-tags --fail-fast
 
 # Add KernelSU
 log "Adding KernelSU..."
@@ -105,7 +104,7 @@ cd kernel_platform
 git clone https://github.com/tiann/KernelSU -b main
 rm -f KernelSU/kernel/kernel
 
-# Set KernelSU version and configuration
+# Configure KernelSU
 log "Configuring KernelSU..."
 sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' KernelSU/kernel/Makefile
 
@@ -130,14 +129,18 @@ perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \|
 
 # Build the kernel
 log "Building the kernel..."
-cd common
-make O=out ARCH=arm64 gki_defconfig
-make O=out ARCH=arm64 -j$(nproc --all)
+cd oplus/build
+if [ $INTERACTIVE -eq 1 ]; then
+    echo "Select pineapple and gki when prompted"
+    ./oplus_build_kernel.sh
+else
+    echo -e "pineapple\ngki" | ./oplus_build_kernel.sh
+fi
 
 # Create final ZIP
 log "Creating final ZIP..."
-cd ../../..
-cp $WORKING_DIR/kernel_platform/common/out/arch/arm64/boot/Image AnyKernel3/
+cd ../../../..
+cp kernel_platform/out/arch/arm64/boot/Image AnyKernel3/
 cd AnyKernel3
 zip -r9 "../Anykernel3-OPNord4-A15-6.1-KernelSU.zip" ./*
 
