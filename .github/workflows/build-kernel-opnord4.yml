@@ -1,9 +1,9 @@
 name: Build OnePlus Nord 4 Android 14/15 6.1 Kernel
 
 on:
-  workflow_call:  # This allows this workflow to be called from another workflow
+  workflow_call: # This allows this workflow to be called from another workflow
   workflow_dispatch:
-  
+
 jobs:
   build-kernel-a14-6-1-kernelsu-susfs:
     runs-on: ubuntu-latest
@@ -15,24 +15,24 @@ jobs:
           root-reserve-mb: 8192
           temp-reserve-mb: 2048
           swap-size-mb: 8192
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
+          remove-dotnet: "true"
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
 
       - name: Get build space
         run: |
           free -h
           df -h
-          
+
       - name: Set CONFIG Environment Variable
         run: |
           # Set CONFIG dynamically based on matrix values
           CONFIG="nord4"
-          
+
           # Set CONFIG as an environment variable for future steps
           echo "CONFIG=$CONFIG" >> $GITHUB_ENV
-          
+
           echo "CONFIG set to: $CONFIG"
 
       - name: Install Repo
@@ -46,9 +46,9 @@ jobs:
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
-    
+
           # Define the branch names using the matrix values
-          ANYKERNEL_BRANCH="android14-6.1"
+          ANYKERNEL_BRANCH="main"
           SUSFS_BRANCH="gki-android14-6.1"
 
           # Debug print the branches
@@ -59,17 +59,17 @@ jobs:
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git
-      
+
       - name: Initialize and Sync Kernel Source
         run: |
           echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
           cd "$CONFIG"
-          
+
           # Initialize and sync kernel source
           echo "Initializing and syncing kernel source..."
           $REPO init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm7675 -m oneplus_nord_4_v.xml --repo-rev=v2.16 --depth=1
-          
+
           # Sync repo and apply patches
           $REPO --version
           $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
@@ -78,19 +78,19 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
+
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
           cd ./KernelSU-Next/kernel
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' ./Makefile
-          
+
       - name: Apply SUSFS Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
+
           echo "Applying SUSFS patches..."
-          
+
           # Copy SUSFS patches
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
@@ -98,19 +98,19 @@ jobs:
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
 
           cd ./KernelSU-Next
-          
+
           # Apply SUSFS patch for KernelSU
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-          
+
           # Change to common directory and apply SUSFS patch
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
-          
+
       - name: Apply Next-SUSFS Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
+
           echo "Applying next SUSFS patches..."
           cp ../../kernel_patches/apk_sign.c_fix.patch ./
           patch -p1 -F 3 < apk_sign.c_fix.patch
@@ -131,9 +131,9 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
+
           echo "Adding configuration settings to gki_defconfig..."
-          
+
           # Add SUSFS configuration settings
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -152,7 +152,7 @@ jobs:
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          
+
           # Add additional tmpfs config setting
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
 
@@ -160,9 +160,9 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
+
           echo "Running sed commands..."
-          
+
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./common/scripts/setlocalversion
@@ -176,7 +176,7 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          
+
           echo "Building the kernel..."
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
           #git config --global user.email "bins4us@hotmail.com"
@@ -189,19 +189,19 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          
+
           echo "Copying Image"
           cp ./out/dist/Image ../AnyKernel3/Image
-          
+
       - name: Create ZIP Files for Different Formats
         run: |
           echo "Creating zip files for all formats..."
           cd ./AnyKernel3
-          
+
           ZIP_NAME="Anykernel3-OPNord4-A15-6.1-KernelSU-SUSFS.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
-          
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
