@@ -51,7 +51,7 @@ jobs:
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
-          ANYKERNEL_BRANCH="android14-6.1"
+          ANYKERNEL_BRANCH="gki-2.0"
           SUSFS_BRANCH="gki-android14-6.1"
 
           echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
