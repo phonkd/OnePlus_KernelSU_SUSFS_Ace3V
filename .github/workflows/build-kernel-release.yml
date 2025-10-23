@@ -5,6 +5,9 @@ permissions:
   actions: write # Allows triggering actions
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       build_opnord4:
@@ -16,19 +19,19 @@ on:
         description: "Do you want to create a release?"
         required: true
         type: boolean
-        default: false
+        default: true
 
 jobs:
   build-kernel-opnord4:
     uses: ./.github/workflows/build-kernel-opnord4.yml
     secrets: inherit
-    if: ${{ inputs.build_opnord4 }}
+    if: ${{ github.event_name == 'push' || inputs.build_opnord4 }}
 
   trigger-release:
     runs-on: [self-hosted, Linux, X64]
     needs:
       - build-kernel-opnord4
-    if: ${{ inputs.make_release }}
+    if: ${{ github.event_name == 'push' || inputs.make_release }}
     env:
       REPO_OWNER: TheWildJames
       REPO_NAME: OnePlus_KernelSU_SUSFS

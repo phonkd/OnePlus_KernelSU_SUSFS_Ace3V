@@ -1,6 +1,9 @@
 name: Build OnePlus Nord 4 Android 14/15 6.1 Kernel
 
 on:
+  push:
+    branches:
+      - main
   workflow_call: # This allows this workflow to be called from another workflow
   workflow_dispatch:
 
@@ -9,21 +12,17 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
 
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@master
-        with:
-          root-reserve-mb: 8192
-          temp-reserve-mb: 2048
-          swap-size-mb: 8192
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-codeql: "true"
+      - uses: actions/checkout@v4
 
-      - name: Get build space
+      - name: Install required packages
         run: |
-          free -h
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev gzip python-is-python3 perl make gcc bc bison flex libssl-dev libelf-dev zip curl jq
+
+      - name: Check available space
+        run: |
           df -h
+          free -h
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -48,7 +47,7 @@ jobs:
           echo "Cloning AnyKernel3 and other dependencies..."
 
           # Define the branch names using the matrix values
-          ANYKERNEL_BRANCH="gki-2.0"
+          ANYKERNEL_BRANCH="android14-6.1"
           SUSFS_BRANCH="gki-android14-6.1"
 
           # Debug print the branches
@@ -179,10 +178,8 @@ jobs:
 
           echo "Building the kernel..."
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
-          #git config --global user.email "bins4us@hotmail.com"
-          #git config --global user.name "TheWildJames"
-          #git add *
-          #git commit -s -a -m "getting rid of -dirty"
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Create Bootimgs Folder and Copy Images
