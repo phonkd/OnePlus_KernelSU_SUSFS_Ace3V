@@ -25,7 +25,7 @@ jobs:
     if: ${{ inputs.build_opnord4 }}
 
   trigger-release:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     needs:
       - build-kernel-opnord4
     if: ${{ inputs.make_release }}
@@ -76,6 +76,9 @@ jobs:
       # Get the Latest Tag from GitHub
       - name: Generate and Create New Tag
         run: |
+          # Check and install required tools
+          which gh || sudo apt-get update && sudo apt-get install -y gh
+          which jq || sudo apt-get install -y jq
           # Fetch the latest tag from GitHub (this is the latest tag based on the GitHub API)
           LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
           if [ -z "$LATEST_TAG" ]; then
