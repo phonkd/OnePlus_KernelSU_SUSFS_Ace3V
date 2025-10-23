@@ -101,19 +101,15 @@ log "Initializing and syncing kernel source..."
 # Add KernelSU
 log "Adding KernelSU..."
 cd kernel_platform
-git clone https://github.com/tiann/KernelSU -b main
+git clone https://github.com/tiann/KernelSU -b main KernelSU
 rm -f KernelSU/kernel/kernel
 
-# Configure KernelSU
+# Configure KernelSU and kernel tree
 log "Configuring KernelSU..."
-sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' KernelSU/kernel/Makefile
-
-# Create symlink in kernel tree
 ln -sf $(pwd)/KernelSU/kernel $(pwd)/common/drivers/kernelsu
 echo "obj-y += kernelsu/" >> ./common/drivers/Makefile
-
-# Add KernelSU Kconfig
 echo "source \"drivers/kernelsu/Kconfig\"" >> ./common/drivers/Kconfig
+sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' KernelSU/kernel/Makefile
 
 # Add KernelSU configuration
 log "Adding KernelSU configuration..."
@@ -121,28 +117,23 @@ echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
 
 # Apply version and build modifications
 log "Applying version and build modifications..."
-sed -i 's/check_defconfig//' ./common/build.config.gki
-sed -i '$s|echo "$res"|echo "$res-KernelSU"|' ./common/scripts/setlocalversion
-sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
-sed -i 's/-dirty//' ./common/scripts/setlocalversion
-perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
+cd oplus/build
 
 # Build the kernel
 log "Building the kernel..."
-cd oplus/build
 if [ $INTERACTIVE -eq 1 ]; then
     echo "Select pineapple and gki when prompted"
-    ./oplus_build_kernel.sh
+    ./oplus_build.sh -t user -p pineapple -b kernel
 else
-    echo -e "pineapple\ngki" | ./oplus_build_kernel.sh
+    ./oplus_build.sh -t user -p pineapple -b kernel
 fi
 
 # Create final ZIP
 log "Creating final ZIP..."
 cd ../../../..
-cp kernel_platform/out/arch/arm64/boot/Image AnyKernel3/
-cd AnyKernel3
-zip -r9 "../Anykernel3-OPNord4-A15-6.1-KernelSU.zip" ./*
+cp kernel_platform/out/msm-kernel-pineapple-gki/dist/Image ../../AnyKernel3/
+cd ../../AnyKernel3
+zip -r9 "../Anykernel3-OPNord4-KernelSU.zip" ./*
 
 cd ..
-success "Build completed! Check Anykernel3-OPNord4-A15-6.1-KernelSU.zip"
+success "Build completed! Check Anykernel3-OPNord4-KernelSU.zip"
