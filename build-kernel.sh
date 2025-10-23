@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -59,6 +58,8 @@ cleanup() {
     log "Cleaning up previous build artifacts..."
     rm -rf "$WORKING_DIR"
     rm -rf AnyKernel3
+    rm -rf susfs4ksu
+    rm -rf kernel_patches
     rm -rf git-repo
     rm -f *.zip
 }
@@ -93,7 +94,7 @@ fi
 # Create and enter working directory
 log "Setting up working directory..."
 mkdir -p "$WORKING_DIR"
-cd "$WORKING_DIR"
+cd "$WORKING_DIR" || error "Failed to enter working directory"
 
 # Initialize and sync kernel source
 log "Initializing and syncing kernel source..."
@@ -102,7 +103,7 @@ log "Initializing and syncing kernel source..."
 
 # Add KernelSU
 log "Adding KernelSU..."
-cd kernel_platform
+cd kernel_platform || error "Failed to enter kernel_platform directory"
 git clone https://github.com/tiann/KernelSU -b main KernelSU
 rm -f KernelSU/kernel/kernel
 
@@ -126,18 +127,15 @@ export TARGET_BOARD_PLATFORM=$KERNEL_TARGET
 
 # Build the kernel
 log "Building the kernel..."
-cd oplus/build
-if [ $INTERACTIVE -eq 1 ]; then
-    ./oplus_build.sh -t $BUILD_TYPE -p $KERNEL_TARGET -b kernel
-else
-    ./oplus_build.sh -t $BUILD_TYPE -p $KERNEL_TARGET -b kernel
-fi
+cd common || error "Failed to enter common directory"
+make O=out ARCH=arm64 gki_defconfig
+make O=out ARCH=arm64 -j$(nproc --all)
 
 # Create final ZIP
 log "Creating final ZIP..."
-cd ../../..
+cd ../..
 mkdir -p out/msm-kernel-$KERNEL_TARGET-$KERNEL_VARIANT/dist
-cp kernel_platform/out/msm-kernel-${KERNEL_TARGET}-${KERNEL_VARIANT}/dist/Image ../../AnyKernel3/
+cp kernel_platform/common/out/arch/arm64/boot/Image ../../AnyKernel3/
 cd ../../AnyKernel3
 zip -r9 "../Anykernel3-OPNord4-KernelSU.zip" ./*
 
