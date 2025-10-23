@@ -44,6 +44,7 @@ CONFIG="nord4"
 ANYKERNEL_BRANCH="gki-2.0"
 SUSFS_BRANCH="gki-android14-6.1"
 WORKING_DIR="$(pwd)/$CONFIG"
+KERNELSU_VERSION="main"  # Using main branch instead of specific tag
 
 # Check for required tools
 REQUIRED_TOOLS="git curl make gcc bc bison flex perl zip python3"
@@ -114,12 +115,12 @@ $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 log "Adding KernelSU..."
 cd kernel_platform
 
-# Download KernelSU without using setup.sh
-git clone https://github.com/tiann/KernelSU -b main --depth=1 KernelSU-Next
-# Remove any existing symlink to avoid infinite loop
-rm -f KernelSU-Next/kernel/kernel
+# Clone KernelSU and checkout main branch
+git clone https://github.com/tiann/KernelSU -b main KernelSU-Next
 cd KernelSU-Next
-git checkout v1.1.1
+
+# Remove any existing symlink to avoid infinite loop
+rm -f kernel/kernel
 
 # Apply SUSFS patches
 log "Applying SUSFS patches..."
@@ -148,6 +149,10 @@ patch -p1 < fix_core_hook.c.patch || true
 patch -p1 < fix_sucompat.c.patch || true
 patch -p1 < fix_kernel_compat.c.patch || true
 cd ../..
+
+# Update KernelSU version
+log "Setting KernelSU version..."
+sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' ./KernelSU-Next/kernel/Makefile
 
 # Apply Hide Stuff patches
 log "Applying hide stuff patches..."
@@ -194,7 +199,7 @@ rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 git config --global user.email "local-build@localhost"
 git config --global user.name "Local Build"
 
-# Build the kernel using legacy build system instead of Bazel
+# Build the kernel using legacy build system
 log "Building the kernel..."
 cd kernel_platform/oplus/build
 if [ $INTERACTIVE -eq 1 ]; then
