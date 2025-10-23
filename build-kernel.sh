@@ -118,8 +118,12 @@ git clone https://github.com/tiann/KernelSU -b main KernelSU-Next
 cd KernelSU-Next
 rm -f kernel/kernel
 
-# Apply base patches from susfs4ksu
-log "Applying base SUSFS patches..."
+# Set KernelSU version
+log "Setting KernelSU version..."
+sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' kernel/Makefile
+
+# Apply SUSFS base patches
+log "Applying SUSFS base patches..."
 cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
 cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ../common/
 cp -r ../../susfs4ksu/kernel_patches/fs/* ../common/fs/
@@ -130,28 +134,26 @@ cd ../common
 patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
 cd ..
 
-# Apply Next-SUSFS fix patches
-log "Applying Next-SUSFS fix patches..."
+# Apply SUSFS fix patches
+log "Applying SUSFS fix patches..."
 PATCH_DIR="../../kernel_patches/wild/susfs_fix_patches/v1.5.12"
-cp "$PATCH_DIR/fix_core_hook.c.patch" KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_sucompat.c.patch" KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_kernel_compat.c.patch" KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_base.c.patch" KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_namespace.c.patch" KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_open.c.patch" KernelSU-Next/kernel/
-cp "$PATCH_DIR/fix_fdinfo.c.patch" KernelSU-Next/kernel/
-
 cd KernelSU-Next/kernel
-for patch in *.patch; do
-    patch -p1 < "$patch" || true
+
+for patch in \
+    "$PATCH_DIR/fix_core_hook.c.patch" \
+    "$PATCH_DIR/fix_kernel_compat.c.patch" \
+    "$PATCH_DIR/fix_sucompat.c.patch" \
+    "$PATCH_DIR/fix_base.c.patch" \
+    "$PATCH_DIR/fix_namespace.c.patch" \
+    "$PATCH_DIR/fix_open.c.patch" \
+    "$PATCH_DIR/fix_fdinfo.c.patch"; do
+    if [ -f "$patch" ]; then
+        patch -p1 < "$patch" || true
+    fi
 done
 cd ../..
 
-# Update KernelSU version
-log "Setting KernelSU version..."
-sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' ./KernelSU-Next/kernel/Makefile
-
-# Apply Hide Stuff patches
+# Apply hide stuff patches
 log "Applying hide stuff patches..."
 cd common
 cp ../../kernel_patches/69_hide_stuff.patch ./
@@ -181,7 +183,7 @@ CONFIG_KSU_SUSFS_SUS_SU=y
 CONFIG_TMPFS_XATTR=y
 EOF
 
-# Run sed and perl commands
+# Apply version and build modifications
 log "Applying version and build modifications..."
 sed -i 's/check_defconfig//' ./common/build.config.gki
 sed -i '$s|echo "$res"|echo "$res-Wild+"|' ./common/scripts/setlocalversion
@@ -189,14 +191,14 @@ sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stam
 sed -i 's/-dirty//' ./common/scripts/setlocalversion
 perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
 
-# Prepare the build environment
+# Prepare build environment
 log "Setting up build environment..."
 cd ..
 rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 git config --global user.email "local-build@localhost"
 git config --global user.name "Local Build"
 
-# Build the kernel using legacy build system
+# Build the kernel
 log "Building the kernel..."
 cd kernel_platform/oplus/build
 if [ $INTERACTIVE -eq 1 ]; then
