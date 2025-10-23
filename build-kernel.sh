@@ -40,6 +40,26 @@ for tool in $REQUIRED_TOOLS; do
     fi
 done
 
+# Clean up function
+cleanup() {
+    log "Cleaning up previous build artifacts..."
+    rm -rf "$WORKING_DIR"
+    rm -rf AnyKernel3
+    rm -rf susfs4ksu
+    rm -rf kernel_patches
+    rm -rf git-repo
+    rm -f *.zip
+}
+
+# Ask for cleanup confirmation
+if [ -d "$WORKING_DIR" ]; then
+    read -p "Previous build directory found. Clean and start fresh? [Y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+        cleanup
+    fi
+fi
+
 # Install repo tool if not present
 if [ ! -f "./git-repo/repo" ]; then
     log "Installing repo tool..."
