@@ -44,7 +44,7 @@ CONFIG="nord4"
 ANYKERNEL_BRANCH="gki-2.0"
 SUSFS_BRANCH="gki-android14-6.1"
 WORKING_DIR="$(pwd)/$CONFIG"
-KERNELSU_VERSION="main"  # Using main branch instead of specific tag
+KERNELSU_VERSION="main"
 
 # Check for required tools
 REQUIRED_TOOLS="git curl make gcc bc bison flex perl zip python3"
@@ -114,40 +114,37 @@ $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 # Add KernelSU
 log "Adding KernelSU..."
 cd kernel_platform
-
-# Clone KernelSU and checkout main branch
 git clone https://github.com/tiann/KernelSU -b main KernelSU-Next
 cd KernelSU-Next
-
-# Remove any existing symlink to avoid infinite loop
 rm -f kernel/kernel
 
-# Apply SUSFS patches
-log "Applying SUSFS patches..."
+# Apply base patches from susfs4ksu
+log "Applying base SUSFS patches..."
 cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
 cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ../common/
 cp -r ../../susfs4ksu/kernel_patches/fs/* ../common/fs/
 cp -r ../../susfs4ksu/kernel_patches/include/linux/* ../common/include/linux/
 
-patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+patch -p1 < 10_enable_susfs_for_ksu.patch || true
 cd ../common
 patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
 cd ..
 
-# Apply Next-SUSFS patches
-log "Applying next SUSFS patches..."
-PATCH_DIR="../../kernel_patches/next/susfs_fix_patches/v1.5.12"
-cd KernelSU-Next
-cp "$PATCH_DIR/fix_apk_sign.c.patch" ./kernel/
-cp "$PATCH_DIR/fix_core_hook.c.patch" ./kernel/
-cp "$PATCH_DIR/fix_sucompat.c.patch" ./kernel/
-cp "$PATCH_DIR/fix_kernel_compat.c.patch" ./kernel/
+# Apply Next-SUSFS fix patches
+log "Applying Next-SUSFS fix patches..."
+PATCH_DIR="../../kernel_patches/wild/susfs_fix_patches/v1.5.12"
+cp "$PATCH_DIR/fix_core_hook.c.patch" KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_sucompat.c.patch" KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_kernel_compat.c.patch" KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_base.c.patch" KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_namespace.c.patch" KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_open.c.patch" KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_fdinfo.c.patch" KernelSU-Next/kernel/
 
-cd kernel
-patch -p1 < fix_apk_sign.c.patch || true
-patch -p1 < fix_core_hook.c.patch || true
-patch -p1 < fix_sucompat.c.patch || true
-patch -p1 < fix_kernel_compat.c.patch || true
+cd KernelSU-Next/kernel
+for patch in *.patch; do
+    patch -p1 < "$patch" || true
+done
 cd ../..
 
 # Update KernelSU version
@@ -157,7 +154,7 @@ sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12321/' ./Ker
 # Apply Hide Stuff patches
 log "Applying hide stuff patches..."
 cd common
-cp ../../../kernel_patches/69_hide_stuff.patch ./
+cp ../../kernel_patches/69_hide_stuff.patch ./
 patch -p1 -F 3 < 69_hide_stuff.patch || true
 cd ..
 
