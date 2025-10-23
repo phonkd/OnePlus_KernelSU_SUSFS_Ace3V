@@ -94,14 +94,20 @@ cd ../common
 patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
 cd ..
 
-# Apply Next-SUSFS patches
+# Apply Next-SUSFS patches from the correct location
 log "Applying next SUSFS patches..."
-cp ../../kernel_patches/apk_sign.c_fix.patch ./
-patch -p1 -F 3 < apk_sign.c_fix.patch
-cp ../../kernel_patches/core_hook.c_fix.patch ./
-patch -p1 --fuzz=3 < core_hook.c_fix.patch
-cp ../../kernel_patches/selinux.c_fix.patch ./
-patch -p1 -F 3 < selinux.c_fix.patch
+PATCH_DIR="../../kernel_patches/next/susfs_fix_patches/v1.5.12"
+cp "$PATCH_DIR/fix_apk_sign.c.patch" ./KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_core_hook.c.patch" ./KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_sucompat.c.patch" ./KernelSU-Next/kernel/
+cp "$PATCH_DIR/fix_kernel_compat.c.patch" ./KernelSU-Next/kernel/
+
+cd KernelSU-Next/kernel
+patch -p1 < fix_apk_sign.c.patch || true
+patch -p1 < fix_core_hook.c.patch || true
+patch -p1 < fix_sucompat.c.patch || true
+patch -p1 < fix_kernel_compat.c.patch || true
+cd ../..
 
 # Apply Hide Stuff patches
 log "Applying hide stuff patches..."
