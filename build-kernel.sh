@@ -21,6 +21,19 @@ success() {
     echo -e "${GREEN}[+]${NC} $1"
 }
 
+# Parse command line arguments
+INTERACTIVE=1
+while getopts "y" opt; do
+    case $opt in
+        y)
+            INTERACTIVE=0
+            ;;
+        \?)
+            error "Invalid option: -$OPTARG"
+            ;;
+    esac
+done
+
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
     error "Please don't run as root"
@@ -51,11 +64,15 @@ cleanup() {
     rm -f *.zip
 }
 
-# Ask for cleanup confirmation
+# Handle cleanup based on interactive mode
 if [ -d "$WORKING_DIR" ]; then
-    read -p "Previous build directory found. Clean and start fresh? [Y/n] " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+    if [ $INTERACTIVE -eq 1 ]; then
+        read -p "Previous build directory found. Clean and start fresh? [Y/n] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+            cleanup
+        fi
+    else
         cleanup
     fi
 fi
@@ -180,7 +197,11 @@ git config --global user.name "Local Build"
 # Build the kernel using legacy build system instead of Bazel
 log "Building the kernel..."
 cd kernel_platform/oplus/build
-SKIP_ABI=1 SKIP_MRPROPER=1 ./oplus_build_kernel.sh pineapple gki
+if [ $INTERACTIVE -eq 1 ]; then
+    ./oplus_build_kernel.sh pineapple gki
+else
+    echo -e "pineapple\ngki" | ./oplus_build_kernel.sh
+fi
 
 # Create final ZIP
 log "Creating final ZIP..."
